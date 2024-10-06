@@ -42,7 +42,7 @@ native bool TF2Attrib_SetByDefIndex(int iEntity, int iDefIndex, float flValue);
  * @return				True if the attribute was added successfully, false if the attribute name was invalid.
  * @error				Invalid entity index or entity does not have m_AttributeList.
  */
-native bool TF2Attrib_SetFromStringValue(int iEntity, const char[] strAttrib, const char[] strValue);
+//native bool TF2Attrib_SetFromStringValue(int iEntity, const char[] strAttrib, const char[] strValue);
 
 /**
  * Returns the address of an attribute on an entity.
@@ -50,10 +50,11 @@ native bool TF2Attrib_SetFromStringValue(int iEntity, const char[] strAttrib, co
  * @param iEntity		Entity index to get attribute from. Must have m_AttributeList.
  * @param strAttrib		Name of the attribute, as from the "name" key in items_game.
  *
- * @return				Address of the attribute on the entity, or Address_Null if the attribute does not exist on the entity.
+ * @return				MemoryPointer handle containing the address of the attribute on the entity,
+ * 						or INVALID_HANDLE if the attribute does not exist on the entity.
  * @error				Invalid entity index or attribute name passed.
  */
-native Address TF2Attrib_GetByName(int iEntity, const char[] strAttrib);
+native MemoryPointer TF2Attrib_GetByName(int iEntity, const char[] strAttrib);
 
 /**
  * Returns the address of an attribute (by attribute index) on an entity.
@@ -61,10 +62,11 @@ native Address TF2Attrib_GetByName(int iEntity, const char[] strAttrib);
  * @param iEntity		Entity index to get attribute from. Must have m_AttributeList.
  * @param iDefIndex		Definition index of the attribute, as from the number on the attribute entry in items_game.
  *
- * @return				Address of the attribute on the entity, or Address_Null if the attribute does not exist on the entity.
+ * @return				MemoryPointer handle containing the address of the attribute on the entity,
+ * 						or INVALID_HANDLE if the attribute does not exist on the entity.
  * @error				Invalid entity index or attribute index passed.
  */
-native Address TF2Attrib_GetByDefIndex(int iEntity, int iDefIndex);
+native MemoryPointer TF2Attrib_GetByDefIndex(int iEntity, int iDefIndex);
 
 /**
  * Removes an attribute from an entity.
@@ -119,9 +121,8 @@ native bool TF2Attrib_ClearCache(int iEntity);
  * @param pAttrib		Address of the attribute.
  * @param iDefIndex		Value to set m_iAttributeDefinitionIndex to.
  *
- * @noreturn
  */
-native void TF2Attrib_SetDefIndex(Address pAttrib, int iDefIndex);
+native void TF2Attrib_SetDefIndex(MemoryPointer pAttrib, int iDefIndex);
 
 /**
  * Returns the value of m_iAttributeDefinitionIndex (the attribute ID) on an attribute.
@@ -130,7 +131,7 @@ native void TF2Attrib_SetDefIndex(Address pAttrib, int iDefIndex);
  *
  * @return				The integer value of m_iAttributeDefinitionIndex on the attribute.
  */
-native int TF2Attrib_GetDefIndex(Address pAttrib);
+native int TF2Attrib_GetDefIndex(MemoryPointer pAttrib);
 
 /**
  * Sets the value of m_flValue on an attribute.
@@ -138,9 +139,8 @@ native int TF2Attrib_GetDefIndex(Address pAttrib);
  * @param pAttrib		Address of the attribute.
  * @param flValue		Value to set m_flValue to.
  *
- * @noreturn
  */
-native void TF2Attrib_SetValue(Address pAttrib, float flValue);
+native void TF2Attrib_SetValue(MemoryPointer pAttrib, float flValue);
 
 /**
  * Returns the value of m_flValue on an attribute.
@@ -149,7 +149,7 @@ native void TF2Attrib_SetValue(Address pAttrib, float flValue);
  *
  * @return				The floating point value of m_flValue on the attribute.
  */
-native float TF2Attrib_GetValue(Address pAttrib);
+native float TF2Attrib_GetValue(MemoryPointer pAttrib);
 
 /**
  * Returns the string data from its raw value representation (a CAttribute_String instance).
@@ -171,7 +171,6 @@ native int TF2Attrib_UnsafeGetStringValue(any pRawValue, char[] buffer, int maxl
  * @param pAttrib		Address of the attribute.
  * @param nCurrency		Value to set m_nRefundableCurrency to.
  *
- * @noreturn
  */
 native void TF2Attrib_SetRefundableCurrency(Address pAttrib, int nCurrency);
 
@@ -194,7 +193,7 @@ native int TF2Attrib_GetRefundableCurrency(Address pAttrib);
  * @return				The number of attributes found on the entity's attribute list (max 20 as of Oct 2017), or -1 if some error happened.
  * @error				Invalid iEntity or iMaxLen.
  */
-native int TF2Attrib_ListDefIndices(int iEntity, int[] iDefIndices, int iMaxLen=20);
+native int TF2Attrib_ListDefIndices(int iEntity, int[] iDefIndices, int iMaxLen);
 
 /**
  * Returns arrays containing the static attributes and their values present on an item definition.
@@ -207,7 +206,7 @@ native int TF2Attrib_ListDefIndices(int iEntity, int[] iDefIndices, int iMaxLen=
  * @return					The number of attributes found on the item definition's static attribute list (max 16 as of June 2017), or -1 if no schema or item definition found.
  * @error					Invalid iMaxLen, or gamedata for this function failed to load.
  */
-native int TF2Attrib_GetStaticAttribs(int iItemDefIndex, int[] iAttribIndices, float[] flAttribValues, int iMaxLen=16);
+native int TF2Attrib_GetStaticAttribs(int iItemDefIndex, int[] iAttribIndices, float[] flAttribValues, int iMaxLen);
 
 /**
  * Returns arrays containing the item server (SOC) attributes and their values present on an item definition.
@@ -220,7 +219,7 @@ native int TF2Attrib_GetStaticAttribs(int iItemDefIndex, int[] iAttribIndices, f
  * @return					The number of attributes found on the item's SOC attribute list (max 16 as of June 2017), or -1 if some error happened.
  * @error					Invalid iEntity or iMaxLen, or gamedata for this function failed to load.
  */
-native int TF2Attrib_GetSOCAttribs(int iEntity, int[] iAttribIndices, float[] flAttribValues, int iMaxLen=16);
+//native int TF2Attrib_GetSOCAttribs(int iEntity, int[] iAttribIndices, float[] flAttribValues, int iMaxLen);
 
 /**
  * Gets whether an attribute is stored as an integer or as a float.
@@ -250,7 +249,6 @@ native bool TF2Attrib_IsValidAttributeName(const char[] strAttrib);
  * @param flValue			Value to set m_flValue to.
  * @param flDuration		Duration of the attribute.  If less than 0, the attribute will not be automatically removed.
  * 
- * @noreturn
  */
 native void TF2Attrib_AddCustomPlayerAttribute(int client, const char[] strAttrib, float flValue, float flDuration = -1.0);
 
@@ -260,7 +258,6 @@ native void TF2Attrib_AddCustomPlayerAttribute(int client, const char[] strAttri
  * @param client			Client index to remove the attribute from.
  * @param strAttrib			Name of the attribute, as from the "name" key in items_game.
  *
- * @noreturn
  */
 native void TF2Attrib_RemoveCustomPlayerAttribute(int client, const char[] strAttrib);
 
@@ -297,7 +294,7 @@ native int TF2Attrib_HookValueInt(int nInitial, const char[] attrClass, int iEnt
  * 
  * @return					Number of bytes written.
  */
-native int TF2Attrib_HookValueString(const char[] initial, const char[] attrClass, int iEntity, char[] buffer, int maxlen);
+//native int TF2Attrib_HookValueString(const char[] initial, const char[] attrClass, int iEntity, char[] buffer, int maxlen);
 
 /**
  * Gets whether the plugin loaded without ANY errors.
@@ -308,11 +305,12 @@ native int TF2Attrib_HookValueString(const char[] initial, const char[] attrClas
  */
 native bool TF2Attrib_IsReady();
 
-public SharedPlugin __pl_tf2attributes =
+public Extension __ext_tf2attributes = 
 {
 	name = "tf2attributes",
-	file = "tf2attributes.smx",
-#if defined REQUIRE_PLUGIN
+	file = "tf2attributes.ext",
+	autoload = 1,
+#if defined REQUIRE_EXTENSIONS
 	required = 1,
 #else
 	required = 0,
@@ -324,6 +322,7 @@ public void __pl_tf2attributes_SetNTVOptional()
 {
 	MarkNativeAsOptional("TF2Attrib_SetByName");
 	MarkNativeAsOptional("TF2Attrib_SetByDefIndex");
+	//MarkNativeAsOptional("TF2Attrib_SetFromStringValue");
 	MarkNativeAsOptional("TF2Attrib_GetByName");
 	MarkNativeAsOptional("TF2Attrib_GetByDefIndex");
 	MarkNativeAsOptional("TF2Attrib_RemoveByName");
@@ -338,14 +337,14 @@ public void __pl_tf2attributes_SetNTVOptional()
 	MarkNativeAsOptional("TF2Attrib_GetRefundableCurrency");
 	MarkNativeAsOptional("TF2Attrib_ListDefIndices");
 	MarkNativeAsOptional("TF2Attrib_GetStaticAttribs");
-	MarkNativeAsOptional("TF2Attrib_GetSOCAttribs");
-	MarkNativeAsOptional("TF2Attrib_ListDefIndices");
+	//MarkNativeAsOptional("TF2Attrib_GetSOCAttribs");
 	MarkNativeAsOptional("TF2Attrib_IsIntegerValue");
 	MarkNativeAsOptional("TF2Attrib_IsValidAttributeName");
 	MarkNativeAsOptional("TF2Attrib_AddCustomPlayerAttribute");
 	MarkNativeAsOptional("TF2Attrib_RemoveCustomPlayerAttribute");
 	MarkNativeAsOptional("TF2Attrib_HookValueFloat");
 	MarkNativeAsOptional("TF2Attrib_HookValueInt");
+	//MarkNativeAsOptional("TF2Attrib_HookValueString");
 	
 	MarkNativeAsOptional("TF2Attrib_IsReady");
 }

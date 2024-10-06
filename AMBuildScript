@@ -1,0 +1,241 @@
+# vim: set ts=2 sw=2 tw=99 noet ft=python: 
+import os, sys, shutil
+
+def ResolveEnvPath(env, folder=None):
+  if env in os.environ:
+    path = os.environ[env]
+    if os.path.isdir(path):
+      return path
+    return None
+
+  if folder:
+    head = os.getcwd()
+    oldhead = None
+    while head != None and head != oldhead:
+      path = os.path.join(head, folder)
+      if os.path.isdir(path):
+        return path
+      oldhead = head
+      head, tail = os.path.split(head)
+
+  return None
+
+def Normalize(path):
+  return os.path.abspath(os.path.normpath(path))
+
+SdkHelpers = builder.Eval('hl2sdk-manifests/SdkHelpers.ambuild', { 'Project': 'tf2attrib' })
+
+class Config(object):
+  def __init__(self):
+    self.mms_root = None
+    self.sm_root = None
+    self.extension = None
+    self.targets = []
+    self.target_archs = set()
+
+    if builder.options.targets:
+      target_archs = builder.options.targets.split(',')
+    else:
+      target_archs = ['x86_64']
+
+    for arch in target_archs:
+        try:
+            cxx = builder.DetectCxx(target_arch = arch)
+            self.target_archs.add(cxx.target.arch)
+        except Exception as e:
+            if builder.options.targets:
+                raise
+            print('Skipping target {}: {}'.format(arch, e))
+            continue
+        self.targets.append(cxx)
+
+    if not self.targets:
+      raise Exception('No suitable C/C++ compiler was found.')
+  
+  @property
+  def tag(self):
+    if builder.options.debug == '1':
+      return 'Debug'
+    return 'Release'
+
+  def shouldIncludeSdk(self, sdk):
+    return not sdk.get('source2', False)
+
+  def findSdkPath(self, sdk_name):
+    dir_name = 'hl2sdk-{}'.format(sdk_name)
+    if builder.options.hl2sdk_root:
+      sdk_path = os.path.join(builder.options.hl2sdk_root, dir_name)
+      if os.path.exists(sdk_path):
+        return sdk_path
+    return ResolveEnvPath('HL2SDK{}'.format(sdk_name.upper()), dir_name)
+
+  def retrieve_sdk(self):
+    sdk_list = ['tf2']
+    SdkHelpers.sdk_filter = self.shouldIncludeSdk
+    SdkHelpers.find_sdk_path = self.findSdkPath
+    SdkHelpers.findSdks(builder, self.targets, sdk_list)
+
+    self.sdks = SdkHelpers.sdks
+    self.sdk_manifests = SdkHelpers.sdk_manifests
+    self.sdk_targets = SdkHelpers.sdk_targets
+
+    for target in self.sdk_targets:
+      if target.sdk['name'] != 'tf2':
+        continue
+      # Our custom tf2 hl2sdk already has those defines
+      rm_defines = [
+        'stricmp=strcasecmp', '_stricmp=strcasecmp',
+        '_snprintf=snprintf', '_vsnprintf=vsnprintf,'
+      ]
+      cxx = target.cxx
+      for rm_define in rm_defines:
+        if rm_define in cxx.defines:
+          cxx.defines.remove(rm_define)
+  
+  def retrieve_sm(self):
+    if builder.options.sm_path:
+      self.sm_root = builder.options.sm_path
+    else:
+      self.sm_root = ResolveEnvPath('SOURCEMOD', 'sourcemod')
+
+    if not self.sm_root or not os.path.isdir(self.sm_root):
+      raise Exception('Could not find a source copy of SourceMod')
+    self.sm_root = Normalize(self.sm_root)
+
+  def retrieve_mms(self):
+    if builder.options.mms_path:
+      self.mms_root = builder.options.mms_path
+    else:
+      self.mms_root = ResolveEnvPath('MMSOURCE', 'metamod-source')
+
+    if not self.mms_root or not os.path.isdir(self.mms_root):
+      raise Exception('Could not find a source copy of Metamod:Source')
+    self.mms_root = Normalize(self.mms_root)
+    
+  def use_auto_versioning(self):
+    return not builder.options.disable_auto_versioning
+  
+  def configure_cxx(self, cxx):
+    if cxx.like('gcc'):
+      self.configure_gcc(cxx)
+    elif cxx.family == 'msvc':
+      self.configure_msvc(cxx)
+
+    # Optimization
+    if builder.options.opt == '1':
+      cxx.defines += ['NDEBUG']
+
+    # Debugging
+    if builder.options.debug == '1':
+      cxx.defines += ['DEBUG', '_DEBUG']
+
+    # Platform-specifics
+    if cxx.target.platform == 'linux':
+      self.configure_linux(cxx)
+    elif cxx.target.platform == 'windows':
+      self.configure_windows(cxx)
+
+    if self.use_auto_versioning():
+      cxx.defines += ['GIT_ACTION_BUILD']
+  
+  def configure_gcc(self, cxx):
+    cxx.cflags += [
+      '-fPIC',
+      '-pipe',
+      '-fno-strict-aliasing',
+      '-fvisibility=hidden',
+      '-fvisibility-inlines-hidden',
+      '-Wall',
+      '-Werror',
+      '-msse'
+    ]
+
+    cxx.defines += [
+      'HAVE_STDINT_H',
+      'GNUC'
+    ]
+
+    cxx.cxxflags += [
+      '-std=c++17',
+      '-fno-threadsafe-statics',
+      '-Wno-non-virtual-dtor',
+      '-Wno-overloaded-virtual',
+      '-Wno-implicit-exception-spec-mismatch',
+      '-Wno-unused-private-field'
+    ]
+
+    if builder.options.opt == '1':
+      cxx.cflags += ['-O3']
+    return
+
+  def configure_msvc(self, cxx):
+    cxx.cxxflags += [
+      '/EHsc',
+      '/std:c++17'
+    ]
+
+    return
+  
+  def configure_linux(self, cxx):
+    cxx.defines += ['_LINUX', 'POSIX']
+    return
+  
+  def configure_windows(self, cxx):
+    cxx.defines += ['_WINDOWS']
+    if cxx.target.arch == 'x86':
+      cxx.defines += ['WIN32']
+    elif cxx.target.arch == 'x86_64':
+      cxx.defines += ['WIN64']
+    return
+  
+  def configure(self):
+    self.retrieve_sm()
+    self.retrieve_mms()
+    self.retrieve_sdk()
+
+    for cxx in self.targets:
+      self.configure_cxx(cxx)
+
+  def configure_sdk(self, binary, context, sdk):
+    for other_sdk in self.sdk_manifests:
+      binary.compiler.defines += ['SE_{}={}'.format(other_sdk['define'], other_sdk['code'])]
+    SdkHelpers.configureCxx(context, binary, sdk)
+
+  def configure_extension(self, binary, context):
+    binary.compiler.cxxincludes += [
+      os.path.join(context.currentSourcePath),
+      os.path.join(self.sm_root, 'public'),
+      os.path.join(self.sm_root, 'public', 'extensions'),
+      os.path.join(self.sm_root, 'public', 'amtl', 'amtl'),
+      os.path.join(self.sm_root, 'public', 'amtl'),
+      os.path.join(self.sm_root, 'sourcepawn', 'include')
+    ]
+
+    binary.compiler.cxxincludes += [
+      os.path.join(self.mms_root, 'core'),
+      os.path.join(self.mms_root, 'core', 'sourcehook'),
+    ]
+
+  def ConfigureLibrary(self, project, name, compiler, context):
+    binary = project.Configure(compiler, name, '{0} - {1}'.format(self.tag, compiler.target.arch))
+    binary.compiler.cxxincludes += [
+      os.path.join(context.currentSourcePath)
+    ]
+    return binary
+  
+  def ConfigureExtension(self, project, compiler, context):
+    binary = self.ConfigureLibrary(project, project.name, compiler, context)
+    self.configure_extension(binary, context)
+    return binary
+
+  def ConfigureExtensionSDK(self, project, compiler, context, sdk):
+    binary = self.ConfigureLibrary(project, project.name + '.' + sdk['extension'], compiler, context)
+    self.configure_extension(binary, context)
+    self.configure_sdk(binary, context, sdk)
+    return binary
+
+Extension = Config()
+Extension.configure()
+
+BuildScripts = ['extension/AMBuilder']
+builder.Build(BuildScripts, { 'Extension': Extension })
